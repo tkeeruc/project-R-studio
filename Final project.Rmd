@@ -1,0 +1,574 @@
+---
+title: "Mini project"
+author: "Taranjeet Kaur"
+date: "2023-05-17"
+output:
+  
+  html_document: 
+    toc: yes
+  pdf_document: default
+  html_notebook: 
+    toc: yes
+---
+```{r setup, inculde = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+The purpose of this project is to use appropriate statistical methods to analyse the data set "Exams" which contains information about math-, reading- and writing scores, and gender, race/ethnicity, parental level of education, lunch and test preparation course. The data set have both numerical and categorical data. So, our main main research question is:
+
+##What factors influence the student performance in exams?
+
+## Load, install and tidy data
+First we need to load some libraries and import the data set we are going to use.
+```{r}
+#install.packages("ggpubr")
+#install.packages("ggcorrplot")
+#install.packages("likert")
+```
+
+```{r}
+library(knitr)
+library(emmeans)  
+library(ggplot2) 
+library(multcomp)
+library(multcompView)
+library(ggplot2) 
+library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(readxl)
+library(RColorBrewer)
+library(viridis)
+library(ggpubr)
+library(corrplot)
+library(ggcorrplot)
+library(likert)
+library(mvtnorm)
+library(survival)
+library(TH.data)
+```
+
+Please include your own path here.
+```{r}
+exams <- read.csv("C:/Users/User/Downloads/exams.csv")
+```
+
+```{r}
+head(exams)
+str(exams)
+```
+## Data Pre-processing
+Data conversion (characters to factors)
+```{r}
+exams$gender <- as.factor(exams$gender)
+exams$race.ethnicity <- as.factor(exams$race.ethnicity) 
+exams$parental.level.of.education <- as.factor(exams$parental.level.of.education)
+exams$lunch <- as.factor(exams$lunch)
+exams$test.preparation.course <- as.factor(exams$test.preparation.course)
+
+str(exams)
+```
+```{r}
+summary(exams)
+```
+Now we (would) need to tidy the data set for data visualization and statistical analyses. The idea of tidy data means that each row has to be an observation and each column has be a variable. Our data is already tidy though, so no need!
+
+## Extra columns
+We want to add an extra column to our data set called "Average" and use this for further analysis. In order to do this we use "mutate".
+
+```{r}
+Student_Performance <- exams %>% 
+  mutate(Average = (`math.score` + `reading.score`+`writing.score`)/3)
+
+head(Student_Performance)
+```
+
+We want to group the performances based on the the score of the Averages. Students scoring above 95 are Excellent, those between 60-75 are Above Average, the ones between 40-60 are Average, and students scoring below 40 are Below Average.
+
+```{r}
+Student_Performance_Grouped <- Student_Performance %>% 
+  mutate(Grades = case_when(
+    Average < 40 ~ "Below Avergae",
+    Average < 60 ~ "Average",
+    Average < 75 ~ " Above Average",
+     Average < 95 ~ " Excellent"))
+
+head(Student_Performance_Grouped)
+```
+
+The color palette "Nice_colors" is created for future use.
+```{r}
+Nice_colors <- c("hotpink1", "indianred3", "darkred", "darkblue", "cyan3", "turquoise2", "yellowgreen", "palegreen2")
+```
+## Research question 1:  Does participation in the test preparation course affect the students performance?
+We want to investigate if there is a correlation between participation in the test preparation course and their performance in all three subjects.
+
+```{r}
+math = ggplot(Student_Performance, aes(x = test.preparation.course, y = math.score, color = test.preparation.course)) + 
+  geom_boxplot(fill = Nice_colors[c(1, 3)], color = "black") +  # Set boxplot fill color and color to black
+  geom_point(aes(fill = test.preparation.course, color = test.preparation.course), 
+             position = position_jitter(0.1, seed = 666),    
+             alpha = 0.8,             
+             size = 3,
+             shape = 21, 
+             color = "black") + 
+  labs(title = "Math Score", x = "Test Preparation", y = "Math Score") +
+  scale_color_manual(values = Nice_colors[c(1, 3)]) +
+  scale_fill_manual(values = Nice_colors[c(1, 3)]) +
+  theme(axis.text.x = element_text(angle = 40, hjust = 0.5, vjust = 0.5)) +
+  theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold"),
+    legend.position = "none"
+  )
+
+writing = ggplot(Student_Performance, aes(x = test.preparation.course, y = writing.score, color = test.preparation.course)) + 
+  geom_boxplot(fill = Nice_colors[c(2, 4)], color = "black") +  # Set boxplot fill color and color to black
+  geom_point(aes(fill = test.preparation.course, color = test.preparation.course), 
+             position = position_jitter(0.1, seed = 666),    
+             alpha = 0.8,             
+             size = 3,
+             shape = 21, 
+             color = "black") + 
+  labs(title = "Writing Score", x = "Test Preparation", y = "Writing Score") +
+  scale_color_manual(values = Nice_colors[c(2, 4)]) +
+  scale_fill_manual(values = Nice_colors[c(2, 4)]) +
+  theme(axis.text.x = element_text(angle = 40, hjust = 0.5, vjust = 0.5)) +
+  theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold"),
+    legend.position = "none"
+  )
+
+reading = ggplot(Student_Performance, aes(x = test.preparation.course, y = reading.score, color = test.preparation.course)) + 
+  geom_boxplot(fill = Nice_colors[c(5, 6)], color = "black") +  # Set boxplot fill color and color to black
+  geom_point(aes(fill = test.preparation.course, color = test.preparation.course), 
+             position = position_jitter(0.1, seed = 666),    
+             alpha = 0.8,             
+             size = 3,
+             shape = 21, 
+             color = "black") + 
+  labs(title = "Reading Score", x = "Test Preparation", y = "Reading Score") +
+  scale_color_manual(values = Nice_colors[c(5, 6)]) +
+  scale_fill_manual(values = Nice_colors[c(5, 6)]) +
+  theme(axis.text.x = element_text(angle = 40, hjust = 0.5, vjust = 0.5)) +
+  theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold"),
+    legend.position = "none"
+  )
+    
+ggarrange(math, writing, reading,
+          #labels = c("A", "B", "C"),
+          ncol = 3, nrow = 1)
+```
+The plot shows that there indeed is a pattern. Students who participated in the 'Test preparation Course' performed better in all the three subjects compared to those who did not participate/complete.
+
+The question is if there is a significant difference between score in either of the tests and completion of the test preparation course. In order to answer this question an ANOVA - which is used to test the difference between two or more means - is used.
+
+## Statistical Analysis: ANOVA
+First, linear models are created and plotted to see if the assumptions we make are true before we can do ANOVA. For example can we evaluate the normality of a variable using a Q-Q plot.
+
+```{r}
+LM_Prep_Math.score <- lm(math.score ~ test.preparation.course, data = exams)
+LM_Prep_Reading.score <- lm(reading.score ~ test.preparation.course, data = exams)
+LM_Prep_Writing.score <- lm(writing.score ~ test.preparation.course, data = exams)
+```
+
+
+```{r}
+plot(LM_Prep_Math.score, which = c(1,2,3))
+```
+Second plot is a normal qq plot. Or normal quantile-quantile plot. The quantiles of a normal distribution is plotted on x- axis. The quantiles of the model is plotted on the y-axis. If the residues are normally distributed, the dots will fall on a straight line across the diagonal. Looks pretty good. In this model, the residues are normally distributed.
+
+The first graph is called residues vs. Fitted. It is plotting the means of groups on x-axis, and the spread of errors on the y-axis. If the variances are equal, we will see roughly same amount of spread across the line. It looks fine to me.
+
+The third graph is called scale location. Again x-axis is still the means of groups, but the y-axis is now square root of absolute values of errors. If the variances are equal, there is roughly a flat line. It looks more or less fine to me.
+
+The last thing to check is outliers. In this case, when we plot the data, we saw there were no outliers.
+
+
+```{r}
+plot(LM_Prep_Reading.score, which = c(1,2,3))
+```
+
+
+```{r}
+plot(LM_Prep_Writing.score, which = c(1,2,3))
+```
+
+Everything looks good so we go ahead and do ANOVA for the math-, reading- and writing scores, and test preparation course.
+
+
+```{r}
+anova(LM_Prep_Math.score)
+anova(LM_Prep_Reading.score)
+anova(LM_Prep_Writing.score)
+```
+
+Test preparation has  F-value >> 1 in all three cases. That means the means are different. This means not only are the means are different, but also  participation in the test course and the score students get on writing test are highly correlated.
+
+All P-values are below 0,05 though the one for Math Score and Test Preparation Course is quite higher than the others. This means that the probability of participation in the test course and the score you get on your math test is less likely to be correlated.
+
+We can do the same for the average score and test preparation course.
+
+```{r}
+LM_Prep_Average = lm(Average~test.preparation.course, data = Student_Performance)
+plot(LM_Prep_Average, which = c(1,2,3))
+```
+
+
+```{r}
+anova(LM_Prep_Average)
+```
+
+The F-value >> 1 and the P-value is very small (< 0.05) which indicate that there is a significant difference between the means and hence should take part in the Test Preparation Course if you want a higher score.
+
+## Socio-economic variables: Parental level of education & lunch
+## Research question 2: Is there a correlation between lunch and students performance?
+If we follow the same steps as above, we can test if there is a correlation between lunch and students performance. A plot of the data is made and then ANOVA is utilized.
+
+
+```{r}
+math = ggplot(Student_Performance, aes(x = lunch, y = math.score, color = lunch)) + 
+  geom_boxplot(fill = Nice_colors[c(1, 2)], color = "black") +  # Set boxplot fill color and color to black
+  geom_point(aes(fill = lunch, color = lunch), 
+             position = position_jitter(0.1, seed = 666),    
+             alpha = 0.8,             
+             size = 3,
+             shape = 21, 
+             color = "black") + 
+  labs(title = "Math Score", x = "Lunch", y = "Math Score") +
+  scale_color_manual(values = Nice_colors[c(1, 2)]) +
+  scale_fill_manual(values = Nice_colors[c(1, 2)]) +
+  theme(axis.text.x = element_text(angle = 40, hjust = 0.5, vjust = 0.5)) +
+  theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold"),
+    legend.position = "none"
+  )
+
+writing = ggplot(Student_Performance, aes(x = lunch, y = writing.score, color = lunch)) + 
+  geom_boxplot(fill = Nice_colors[c(7, 8)], color = "black") +  # Set boxplot fill color and color to black
+  geom_point(aes(fill = lunch, color = lunch), 
+             position = position_jitter(0.1, seed = 666),    
+             alpha = 0.8,             
+             size = 3,
+             shape = 21, 
+             color = "black") + 
+  labs(title = "Writing Score", x = "Lunch", y = "Writing Score") +
+  scale_color_manual(values = Nice_colors[c(7, 8)]) +
+  scale_fill_manual(values = Nice_colors[c(7, 8)]) +
+  theme(axis.text.x = element_text(angle = 40, hjust = 0.5, vjust = 0.5)) +
+  theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold"),
+    legend.position = "none"
+  )
+
+reading = ggplot(Student_Performance, aes(x = lunch, y = reading.score, color = lunch)) + 
+  geom_boxplot(fill = Nice_colors[c(5, 6)], color = "black") +  # Set boxplot fill color and color to black
+  geom_point(aes(fill = lunch, color = lunch), 
+             position = position_jitter(0.1, seed = 666),    
+             alpha = 0.8,             
+             size = 3,
+             shape = 21, 
+             color = "black") + 
+  labs(title = "Reading Score", x = "Lunch", y = "Reading Score") +
+  scale_color_manual(values = Nice_colors[c(5, 6)]) +
+  scale_fill_manual(values = Nice_colors[c(5, 6)]) +
+  theme(axis.text.x = element_text(angle = 40, hjust = 0.5, vjust = 0.5)) +
+  theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold"),
+    legend.position = "none"
+  )
+    
+ggarrange(math, writing, reading,
+          #labels = c("A", "B", "C"),
+          ncol = 3, nrow = 1)
+```
+
+The plots shows that students who get the "standard" lunch compared to "free" or "reduced" get higher scores both on average but also in the individual tests.
+
+## Statistical Analysis
+Linear models are created and plotted.
+
+```{r}
+LM_Lunch_Math.score <- lm(math.score ~ lunch, data = exams)
+LM_Lunch_Reading.score <- lm(reading.score ~ lunch, data = exams)
+LM_Lunch_Writing.score <- lm(writing.score ~ lunch, data = exams)
+LM_Lunch_Average <- lm(Average ~ lunch, data = Student_Performance)
+```
+
+
+```{r}
+plot(LM_Lunch_Math.score, which = c(1,2,3))
+```
+
+```{r}
+plot(LM_Lunch_Reading.score, which = c(1,2,3))
+```
+
+```{r}
+plot(LM_Lunch_Writing.score, which = c(1,2,3))
+```
+
+```{r}
+plot(LM_Lunch_Average, which = c(1,2,3))
+```
+
+ANOVA is performed on all four categories.
+
+```{r}
+anova(LM_Lunch_Math.score)
+anova(LM_Lunch_Reading.score)
+anova(LM_Lunch_Writing.score)
+anova(LM_Lunch_Average)
+```
+
+All F-values >> 1 and all P-values are well below 0,05 which means there is a significant difference between the means. It can therefore be concluded there is a correlation between lunch and test score. However, this correlation could be due to the socioeconomic status of the parents as students who get lunch from home usually have parents with good jobs and educations.
+
+## Demographic variables : Gender & Race
+## Research question 3: Do male students have better mathematical skills and do females excel in overall performance?
+First we will visualize the data
+
+```{r}
+Gender_M = ggboxplot(Student_Performance, x = "gender", y = "math.score", 
+          color = "gender", palette = c("hotpink", "#00AFBB"),
+            ylab = "Math Score", xlab = "Gender") + 
+          geom_boxplot(fill=Nice_colors[c(1, 5)]) +
+  labs(title = "Math Score Male vs  Female ") +
+   theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold")
+    ) 
+
+Gender_F = ggboxplot(Student_Performance, x = "gender", y = "Average", 
+          color = "gender", palette = c("hotpink", "#00AFBB"),
+          ylab = "Average score", xlab = "Gender") +
+  geom_boxplot(fill=Nice_colors[c(1, 5)]) +
+  labs(title = "Overall score Male vs Female ") +
+   theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold")
+    ) 
+
+
+
+ggarrange(Gender_M, Gender_F,
+          labels = c("A", "B"),
+          ncol = 2, nrow = 1)
+```
+Figure A shows that males have better mathematical skills than females and figure B shows that overall performance of females is better than males.
+To prove this, we need to do the statistical analysis.
+
+## Statistical Analysis
+```{r}
+LM_Math_gender <- lm(math.score ~ gender, data = Student_Performance)
+LM_Average_gender <- lm(Average ~ gender, data = Student_Performance)
+```
+```{r}
+plot(LM_Math_gender, which = c(1,2,3))
+```
+
+
+```{r}
+plot(LM_Average_gender, which = c(1,2,3))
+```
+First and third graphs look pretty good. Q-Q plot looks okay to me means the residues are  normally distributed.
+
+We can do ANOVA now.
+```{r}
+anova(LM_Math_gender)
+```
+F-value >> 1 and P-value << 0.05 means males have significantly better mathematical skills than the female students.
+
+```{r}
+anova(LM_Average_gender)
+```
+F >> 1 and p value < 0.05 means there is significant difference in the overall performance of female students and male students which means females outperform males in other skills such as writing and reading.
+
+# The multifactorial design: Effect of two or more factors on a response variable
+A two-way ANOVA test is used to evaluate  the simultaneous effect of two grouping variables on a response variable. It is possible to see if there is interaction between two variables. 
+ 
+# Research question 4: Is there any interaction between parents education and lunch?
+We want to know if both the socio-economic factors are correlated.
+We will make a two-way interaction plot, which plots the mean of the response (Average Score) for two-way combinations of factors, thereby illustrating possible interactions.
+
+```{r}
+ggline(Student_Performance, x = "parental.level.of.education",
+       y = "Average", color = "lunch",  
+       ylab = "Average Score", xlab = "Parents Education",
+       add = c("mean_se", "barplot"),
+        palette = c("#00AFBB", "#E7B800")) +
+   stat_summary(geom = "ribbon",   
+               fun.data = mean_se, 
+               aes(group = lunch,
+                   fill = lunch), 
+               alpha = 0.5) + 
+  scale_x_discrete(limits = c("some high school", "high school", "some college", "associate degree", "bachelor's degree", "master's degree")) +
+  
+    theme(axis.text.x = element_text(angle = 40, hjust = 0.5, vjust = 0.5))+
+   theme(
+    text = element_text(size = 10, color = "black", face = "bold"),
+    axis.text = element_text(size = 10, color = "black", face = "bold")
+    ) +
+ labs(title = "Parental Education and Lunch") 
+```
+Two lines are roughly parallel means there is no interaction between these two variables. For free lunch category, higher  the parental education is, the better is the student's performance. Students who had parents with bachelor/associate degrees performed better in standard lunch category.
+This will further be confirmed by doing ANOVA test.
+
+
+Now we will make a linear model, then plot it to check the assumptions of ANOVA and at last will do an ANOVA.
+
+```{r}
+Interaction_Ave_Edu_Lunch = lm(Average ~ parental.level.of.education + lunch + parental.level.of.education: lunch , data = Student_Performance)
+```
+
+
+```{r}
+plot(Interaction_Ave_Edu_Lunch, which = c(1,2,3))
+```
+
+
+```{r}
+anova(Interaction_Ave_Edu_Lunch)
+```
+From the ANOVA table we can conclude that there is no interaction between parental level of education and lunch. However, parents educational background and lunch will impact significantly the Average score. Lunch is the more significant socio- economic factor than the parental education.
+
+# Research question 5:  Does the performance of a particular gender depend on participation in the test preparation course?
+As we know from our analysis the overall performance of females was better than males, so we would like to know if preparation before exams have a better impact on female students.
+
+```{r}
+Student_Performance %>% 
+  ggplot(aes(x = gender, y = Average)) +
+  stat_summary(geom = "line",  
+               fun = mean,  
+               aes(group = test.preparation.course, color = test.preparation.course),  
+               size = 1.2) + 
+  stat_summary(geom = "ribbon",   
+               fun.data = mean_se, 
+               aes(group = test.preparation.course,
+                   fill = test.preparation.course), 
+               alpha = 0.5) +   
+  geom_point(aes(fill = test.preparation.course), 
+             position = position_jitter(0.1, seed = 666),    
+             alpha = 0.8,             
+             size = 2,
+             shape = 21, 
+             color = "black") +    
+  scale_fill_manual(values = c("purple", "palegreen")) +  
+  scale_color_manual(values = c("purple", "palegreen")) + 
+  labs(x = "Gender",              
+       y = "Average score",
+        title = "Test Preparation and Gender") +
+  theme_minimal() +
+  theme(
+        axis.line = element_line(size = 1.2), 
+        text = element_text(size = 10, color = "black", face = "bold"),
+        axis.text = element_text(size = 10, color = "black", face = "bold")
+        )
+```
+Dots indicate the number of students. Again, two parallel lines indicate that the test preparation course had no impact on the performance of a particular gender which means females performed better whether they participated in the course or not. In other words, we can say that in both the scenarios (completed/None), females performed better than males.
+
+Now we will make a linear model, then plot it to check the assumptions of ANOVA and at last will do an ANOVA.
+
+```{r}
+Interaction_Ave_test_gender = lm(Average ~ gender + test.preparation.course + gender : test.preparation.course , data = Student_Performance)
+```
+
+
+```{r}
+plot(Interaction_Ave_test_gender, which = c(1,2,3))
+```
+
+
+```{r}
+anova(Interaction_Ave_test_gender)
+```
+For interaction part, F-value < 1 and P-value > 0.05 means there is no interaction between gender & test preparation.
+
+# Correlation between numerical variables     
+# Research question 6: Are math score, reading score and writing score anti-correlated?
+First, we will visualize the data
+```{r}
+  Math_1 = ggplot(Student_Performance, aes (x = math.score, y = writing.score), 
+         ylab = "Writing Score", xlab = "Math Score") +
+  labs(title = "Writing x Math ", x= "Math Score", y ="Writing Score") +
+  geom_point(alpha = 0.8, color = "#DC8665") +
+  geom_smooth(method = "lm", color = "black",se = F) +
+  theme_minimal() +
+  theme(axis.line = element_line(size = 1.2), 
+        text = element_text(size = 10, color = "black", face = "bold"), 
+        axis.text = element_text(size = 10, color = "black", face = "bold")
+        )
+Reading_2 = ggplot(Student_Performance, aes (x = math.score, y = reading.score), 
+         ylab = "Reading Score", xlab = "Math Score") +
+  labs(title = "Reading x Math", x = " Math Score", y = "Reading Score") +
+  geom_point(alpha = 0.8, color = "#DC8665") +
+  geom_smooth(method = "lm", color = "black", se = F) +
+  theme_minimal() +
+  theme(axis.line = element_line(size = 1.2), 
+        text = element_text(size = 10, color = "black", face = "bold"), 
+        axis.text = element_text(size = 10, color = "black", face = "bold")
+        )
+Writing_3 = ggplot(Student_Performance, aes (x = reading.score, y = writing.score),
+  ylab = "Writing  Score", xlab = "Reading Score") +                
+  labs(title = "Writing x Reading", y = "Writing Score", x = "Reading Score") +
+  geom_point(alpha = 0.8, color = "#DC8665") +
+  geom_smooth(method = "lm", color = "black", se = F) +
+  theme_minimal() +
+  theme(axis.line = element_line(size = 1.2), 
+        text = element_text(size = 10, color = "black", face = "bold"), 
+        axis.text = element_text(size = 10, color = "black", face = "bold")
+        )
+ggarrange(Math_1, Writing_3, Reading_2,
+          labels = c("A", "B", "C"),
+          ncol = 3, nrow = 1)
+
+```
+There is more or less an even spread of dots along the range of values and  we can  say that all the scores are positively correlated.
+
+# Statistical quantification
+The correlation test have a few assumptions.
+
+1.  Each observation is independent of each other. The measurement of one does not affect the other, and no repeated measures.
+2.  Normality: The errors are normally distributed.
+3.  Equal variance across the range of values.
+4.  No outliers.
+
+The above four assumptions really look like the assumptions of ANOVA. And they essentially are.
+However, there are two more.
+
+5.  Related pairs: Each x-value has one and only one corresponding y-value.
+6.  Linearity: There is a linear relation between the two variable.
+
+It turns out the easiest way to check these assumptions is to just look at the scatter plot.
+
+Does it look like a linear relation? - Yeah.
+Does it look like there is more or less an even spread of dots along the range of values? - More or less okay.
+Are there any outliers (dots that are all the way out there)? - There is quite a spread, but I don't think there are outliers.
+
+```{r}
+cor.test(Student_Performance$writing.score, Student_Performance$math.score)
+```
+```{r}
+cor.test(Student_Performance$reading.score, Student_Performance$math.score)
+```
+
+```{r}
+cor.test(Student_Performance$reading.score, Student_Performance$writing.score)
+```
+All r-values are < 1 but are close to 1 which means all the scores are positively correlated. From the r-values and spread of dots, it can be concluded that reading and writing score has a stronger association than reading score x math score and writing score x math score.
+
+
+# Conclusion
+
+From above analysis, we could answer the main question.
+Test preparation course (completed/none) has significant effect on students score. Students who completed the course before test achieved higher score that who did not join or complete. 
+Socio-economic also being the second significant factor. Determining lunch category and parental level of education, our analysis show that students who come from middle-high socio-economic level perform better in the test.
+Lastly, based on the demographic factor 'gender', on average, female students outperformed male students on verbal and reading tests, while male students  performed better than female students in mathematics.
+It can also be concluded that there is no interaction between these variables. However, by seeing the scatter plot and trendline, we could say that every score has a strong relationship.
